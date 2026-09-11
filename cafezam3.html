@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Kawiarnia - POS & Kuchnia</title>
+  <style>
+    :root {
+      --bg-color: #f3efe6;
+      --card-bg: #ffffff;
+      --primary: #4a3125;
+      --accent: #c85a32;
+      --accent-green: #2e7d32;
+      --accent-blue: #0288d1;
+      --text-main: #2d2422;
+      --text-muted: #756966;
+      --border: #dcd3cb;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+    header { background-color: var(--primary); color: white; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; height: 45px; }
+    header h1 { font-size: 1.1rem; }
+    header .admin-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+
+    .dashboard { display: grid; grid-template-columns: 1.1fr 1fr 1.1fr; gap: 10px; padding: 10px; height: calc(100vh - 45px); }
+
+    .panel { background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .panel-header { background: #e8e1d7; padding: 10px; font-weight: bold; font-size: 1rem; color: var(--primary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+
+    .panel-content { padding: 10px; overflow-y: auto; flex: 1; }
+
+    .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+    .product-btn { background: #fdfbf7; border: 1px solid var(--border); border-radius: 6px; padding: 12px 6px; text-align: center; cursor: pointer; font-weight: bold; font-size: 0.85rem; -webkit-tap-highlight-color: transparent; }
+    .product-btn:active { background: var(--accent); color: white; }
+    .product-btn .price { font-size: 0.8rem; color: var(--accent); margin-top: 4px; font-weight: normal; }
+    .product-btn:active .price { color: #fff; }
+
+    .input-group { margin-bottom: 8px; }
+    .input-group input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.9rem; }
+
+    .cart-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 0.85rem; }
+    .cart-table th, .cart-table td { padding: 6px 2px; text-align: left; border-bottom: 1px solid #eee; }
+    .cart-item-old { color: #888; font-style: italic; }
+    .cart-item-new { font-weight: bold; }
+    
+    .badge-old { background: #e0e0e0; color: #555; padding: 1px 4px; border-radius: 3px; font-size: 0.65rem; }
+    .badge-new { background: #ffe0b2; color: #e65100; padding: 1px 4px; border-radius: 3px; font-size: 0.65rem; }
+
+    .qty-btn { background: #e0d7d3; border: none; width: 22px; height: 22px; border-radius: 3px; font-weight: bold; cursor: pointer; }
+
+    .cart-summary { font-size: 1.1rem; font-weight: bold; display: flex; justify-content: space-between; margin: 8px 0; border-top: 2px solid var(--border); padding-top: 8px; }
+
+    .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .btn { padding: 10px 5px; border: none; border-radius: 5px; font-size: 0.8rem; font-weight: bold; cursor: pointer; text-align: center; color: white; }
+    .btn-success { background: var(--accent-green); }
+    .btn-warning { background: var(--accent); }
+    .btn-secondary { background: #8d6e63; }
+    .btn-danger { background: #c62828; padding: 2px 6px; font-size: 0.75rem; }
+
+    .open-tabs-section { margin-top: 15px; border-top: 2px dashed var(--border); padding-top: 10px; }
+    .open-tabs-section h4 { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px; }
+    .tab-chip { background: #fff3e0; border: 1px solid #ffe0b2; padding: 6px 8px; border-radius: 5px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; cursor: pointer; }
+    .tab-chip.active { border-color: var(--accent); background: #ffe0b2; font-weight: bold; }
+
+    .kitchen-ticket { background: #fffde7; border: 1px solid #fff59d; border-radius: 6px; padding: 8px; margin-bottom: 10px; font-size: 0.85rem; }
+    .kitchen-ticket-header { display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px solid #ffe082; padding-bottom: 4px; margin-bottom: 6px; }
+    .kitchen-sec-title { font-size: 0.7rem; font-weight: bold; color: #8d6e63; margin: 6px 0 2px 0; text-transform: uppercase; }
+    
+    .kitchen-list { list-style: none; }
+    .kitchen-list li { padding: 4px 0; border-bottom: 1px dashed #fff59d; display: flex; justify-content: space-between; align-items: center; }
+    .kitchen-list li.done { text-decoration: line-through; opacity: 0.4; }
+
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
+    .modal-content { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>☕ Kawiarnia POS & Kuchnia</h1>
+    <div style="display:flex; gap: 15px; align-items: center;">
+      <span id="clock" style="font-weight: bold; font-size: 0.9rem;"></span>
+      <button class="admin-btn" onclick="toggleAdminModal(true)">⚙️ Produkty</button>
+    </div>
+  </header>
+
+  <div class="dashboard">
+    <div class="panel">
+      <div class="panel-header"><span>1. Menu Produkty</span></div>
+      <div class="panel-content"><div id="products-container" class="products-grid"></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span id="cart-title">2. Rachunek</span>
+        <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.7rem;" onclick="resetPOS()">Nowy / Czysty</button>
+      </div>
+      <div class="panel-content">
+        <div class="input-group">
+          <input type="text" id="table-name" placeholder="Nazwa rachunku / nr stolika">
+        </div>
+        <table class="cart-table">
+          <thead>
+            <tr><th>Produkt</th><th>Ilość</th><th>Suma</th><th></th></tr>
+          </thead>
+          <tbody id="cart-items"></tbody>
+        </table>
+        <div class="cart-summary">
+          <span>Suma:</span>
+          <span id="cart-total">0.00 zł</span>
+        </div>
+        <div class="actions-grid">
+          <button class="btn btn-success" onclick="processOrder(true)">💳 Zapłać od razu</button>
+          <button class="btn btn-warning" onclick="processOrder(false)">📝 Zapisz otwarty</button>
+        </div>
+        <div class="open-tabs-section">
+          <h4>📋 Otwarte Rachunki:</h4>
+          <div id="open-tabs-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header" style="background: #fff3e0;">
+        <span>3. Kuchnia & Bar</span>
+        <span id="kitchen-count-badge" style="font-size:0.75rem; background: var(--accent); color: white; padding: 2px 6px; border-radius: 10px;">0</span>
+      </div>
+      <div class="panel-content" id="kitchen-container"></div>
+    </div>
+  </div>
+
+  <div id="admin-modal" class="modal">
+    <div class="modal-content">
+      <h3>Edycja Menu</h3>
+      <br>
+      <div style="display:flex; gap: 5px; margin-bottom: 15px;">
+        <input type="text" id="new-prod-name" placeholder="Nazwa" style="flex:2; padding:5px;">
+        <input type="number" id="new-prod-price" placeholder="Cena" style="flex:1; padding:5px;">
+        <button class="btn btn-success" onclick="addProduct()">+</button>
+      </div>
+      <div id="admin-products-list"></div>
+      <br>
+      <button class="btn btn-secondary" style="width: 100%;" onclick="toggleAdminModal(false)">Zamknij</button>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_PRODUCTS = [
+      { id: 1, name: 'Espresso', price: 10.00 },
+      { id: 2, name: 'Cappuccino', price: 14.00 },
+      { id: 3, name: 'Latte', price: 16.00 },
+      { id: 4, name: 'Herbata', price: 12.00 },
+      { id: 5, name: 'Sernik', price: 18.00 },
+      { id: 6, name: 'Szarlotka', price: 16.00 },
+      { id: 7, name: 'Croissant', price: 9.00 },
+      { id: 8, name: 'Woda', price: 6.00 }
+    ];
+
+    // BEZPIECZNY ODCZYT I ZAPIS (Omija blokadę Plików na iPadzie)
+    function safeGetStorage(key, fallback) {
+      try {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : fallback;
+      } catch (e) {
+        console.warn('Ostrzeżenie: localStorage zablokowane na iPadzie. Używam pamięci RAM.');
+        return fallback;
+      }
+    }
+
+    function safeSetStorage(key, data) {
+      try {
+        localStorage.setItem(key, JSON.stringify(data));
+      } catch (e) {
+        console.warn('Ostrzeżenie: Nie można zapisać w localStorage.');
+      }
+    }
+
+    let products = safeGetStorage('cafe_products', DEFAULT_PRODUCTS);
+    let openTabs = safeGetStorage('cafe_tabs', []);
+
+    let activeTabId = null;
+    let currentNewBasket = [];
+
+    function saveState() {
+      safeSetStorage('cafe_products', products);
+      safeSetStorage('cafe_tabs', openTabs);
+      renderAll();
+    }
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').innerText = now.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+    }
+    setInterval(updateClock, 1000);
+
+    function renderAll() {
+      renderProducts();
+      renderCart();
+      renderOpenTabsList();
+      renderKitchen();
+    }
+
+    function renderProducts() {
+      const container = document.getElementById('products-container');
+      if (!products || products.length === 0) products = DEFAULT_PRODUCTS;
+      
+      container.innerHTML = products.map(p => `
+        <div class="product-btn" onclick="addToBasket(${p.id})">
+          <div>${p.name}</div>
+          <div class="price">${p.price.toFixed(2)}zł</div>
+        </div>
+      `).join('');
+    }
+
+    function addToBasket(productId) {
+      const prod = products.find(p => p.id === productId);
+      if (!prod) return;
+
+      const existing = currentNewBasket.find(i => i.productId === productId);
+      if (existing) {
+        existing.qty++;
+      } else {
+        currentNewBasket.push({ productId: prod.id, name: prod.name, price: prod.price, qty: 1 });
+      }
+      renderCart();
+    }
+
+    function changeNewQty(index, delta) {
+      currentNewBasket[index].qty += delta;
+      if (currentNewBasket[index].qty <= 0) currentNewBasket.splice(index, 1);
+      renderCart();
+    }
+
+    function renderCart() {
+      const cartTable = document.getElementById('cart-items');
+      cartTable.innerHTML = '';
+      let totalSum = 0;
+      let existingItems = [];
+
+      if (activeTabId) {
+        const tab = openTabs.find(t => t.id === activeTabId);
+        if (tab) {
+          existingItems = tab.items;
+          document.getElementById('cart-title').innerText = `Edycja: ${tab.tableName}`;
+          document.getElementById('table-name').value = tab.tableName;
+          document.getElementById('table-name').disabled = true;
+        }
+      } else {
+        document.getElementById('cart-title').innerText = '2. Nowy Rachunek';
+        document.getElementById('table-name').disabled = false;
+      }
+
+      existingItems.forEach(item => {
+        const itemTotal = item.price * item.qty;
+        totalSum += itemTotal;
+        cartTable.innerHTML += `
+          <tr class="cart-item-old">
+            <td>${item.name} <span class="badge-old">wydane</span></td>
+            <td>${item.qty} szt</td>
+            <td>${itemTotal.toFixed(2)}</td>
+            <td>-</td>
+          </tr>
+        `;
+      });
+
+      currentNewBasket.forEach((item, idx) => {
+        const itemTotal = item.price * item.qty;
+        totalSum += itemTotal;
+        cartTable.innerHTML += `
+          <tr class="cart-item-new">
+            <td>${item.name} <span class="badge-new">NOWE</span></td>
+            <td>
+              <button class="qty-btn" onclick="changeNewQty(${idx}, -1)">-</button>
+              ${item.qty}
+              <button class="qty-btn" onclick="changeNewQty(${idx}, 1)">+</button>
+            </td>
+            <td>${itemTotal.toFixed(2)}</td>
+            <td><button class="btn btn-danger" onclick="changeNewQty(${idx}, -${item.qty})">X</button></td>
+          </tr>
+        `;
+      });
+
+      document.getElementById('cart-total').innerText = `${totalSum.toFixed(2)} zł`;
+    }
+
+    function resetPOS() {
+      activeTabId = null;
+      currentNewBasket = [];
+      document.getElementById('table-name').value = '';
+      document.getElementById('table-name').disabled = false;
+      renderCart();
+      renderOpenTabsList();
+    }
+
+    function processOrder(isPaidImmediately) {
+      const tableName = document.getElementById('table-name').value.trim() || 'Stolik Ogólny';
+
+      if (currentNewBasket.length === 0 && !activeTabId) {
+        alert('Koszyk jest pusty!');
+        return;
+      }
+
+      const preparedNewItems = currentNewBasket.map(i => ({
+        ...i,
+        status: 'kitchen_pending',
+        addedAt: new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })
+      }));
+
+      if (activeTabId) {
+        const tab = openTabs.find(t => t.id === activeTabId);
+        if (tab) {
+          tab.items = [...tab.items, ...preparedNewItems];
+          if (isPaidImmediately) tab.isPaid = true;
+        }
+      } else {
+        const newTab = {
+          id: 'tab_' + Date.now(),
+          tableName: tableName,
+          createdAt: new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }),
+          isPaid: isPaidImmediately,
+          items: preparedNewItems
+        };
+        openTabs.push(newTab);
+      }
+
+      saveState();
+      resetPOS();
+    }
+
+    function renderOpenTabsList() {
+      const container = document.getElementById('open-tabs-list');
+      const activeTabs = openTabs.filter(t => !t.isPaid);
+
+      if (activeTabs.length === 0) {
+        container.innerHTML = '<span style="font-size:0.75rem; color:#888;">Brak otwartych rachunków.</span>';
+        return;
+      }
+
+      container.innerHTML = activeTabs.map(tab => {
+        const total = tab.items.reduce((sum, i) => sum + (i.price * i.qty), 0);
+        const isActive = tab.id === activeTabId;
+        return `
+          <div class="tab-chip ${isActive ? 'active' : ''}" onclick="selectTab('${tab.id}')">
+            <div>
+              <strong>${tab.tableName}</strong> (${tab.createdAt})
+            </div>
+            <div>
+              <b>${total.toFixed(2)} zł</b>
+              <button class="btn btn-success" style="padding:2px 5px; margin-left:5px; font-size:0.7rem;" onclick="event.stopPropagation(); quickPayTab('${tab.id}')">Rozlicz</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectTab(tabId) {
+      activeTabId = tabId;
+      currentNewBasket = [];
+      renderCart();
+      renderOpenTabsList();
+    }
+
+    function quickPayTab(tabId) {
+      const tab = openTabs.find(t => t.id === tabId);
+      if (tab) {
+        tab.isPaid = true;
+        if (activeTabId === tabId) resetPOS();
+        saveState();
+      }
+    }
+
+    function renderKitchen() {
+      const container = document.getElementById('kitchen-container');
+      const kitchenTickets = openTabs.filter(t => t.items.length > 0);
+
+      let pendingTotalCount = 0;
+
+      if (kitchenTickets.length === 0) {
+        container.innerHTML = '<p style="font-size:0.85rem; color: var(--text-muted)">Brak zamówień na kuchni.</p>';
+        document.getElementById('kitchen-count-badge').innerText = '0';
+        return;
+      }
+
+      container.innerHTML = kitchenTickets.map(tab => {
+        const pendingItems = tab.items.filter(i => i.status === 'kitchen_pending');
+        const doneItems = tab.items.filter(i => i.status === 'kitchen_done');
+
+        pendingTotalCount += pendingItems.length;
+
+        if (pendingItems.length === 0 && doneItems.length > 0) {
+          return `
+            <div class="kitchen-ticket" style="opacity: 0.5;">
+              <div class="kitchen-ticket-header">
+                <span>${tab.tableName} ${tab.isPaid ? '💳' : '📝'}</span>
+                <span style="color:var(--accent-green)">WYDANE</span>
+              </div>
+              <button class="btn btn-secondary" style="width:100%; font-size:0.7rem; padding:2px;" onclick="clearTabKitchenHistory('${tab.id}')">Ukryj bilet</button>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="kitchen-ticket">
+            <div class="kitchen-ticket-header">
+              <span>${tab.tableName}</span>
+              <span>${tab.isPaid ? '🟢 Zapłacone' : '🔴 Otwarty'}</span>
+            </div>
+
+            ${pendingItems.length > 0 ? `
+              <div class="kitchen-sec-title">⚠️ Do zrobienia:</div>
+              <ul class="kitchen-list">
+                ${pendingItems.map((item) => {
+                  const realIndex = tab.items.indexOf(item);
+                  return `
+                    <li>
+                      <span><b>${item.qty}x</b> ${item.name}</span>
+                      <button class="btn btn-success" style="padding: 2px 6px; font-size:0.75rem;" onclick="toggleKitchenStatus('${tab.id}', ${realIndex})">✓ Gotowe</button>
+                    </li>
+                  `;
+                }).join('')}
+              </ul>
+            ` : ''}
+
+            ${doneItems.length > 0 ? `
+              <div class="kitchen-sec-title">Wcześniej wydane:</div>
+              <ul class="kitchen-list">
+                ${doneItems.map((item) => {
+                  const realIndex = tab.items.indexOf(item);
+                  return `
+                    <li class="done">
+                      <span><b>${item.qty}x</b> ${item.name}</span>
+                      <button class="btn btn-secondary" style="padding:1px 4px; font-size:0.65rem;" onclick="toggleKitchenStatus('${tab.id}', ${realIndex})">Cofnij</button>
+                    </li>
+                  `;
+                }).join('')}
+              </ul>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('kitchen-count-badge').innerText = pendingTotalCount;
+    }
+
+    function toggleKitchenStatus(tabId, itemIndex) {
+      const tab = openTabs.find(t => t.id === tabId);
+      if (tab && tab.items[itemIndex]) {
+        const current = tab.items[itemIndex].status;
+        tab.items[itemIndex].status = (current === 'kitchen_pending') ? 'kitchen_done' : 'kitchen_pending';
+        saveState();
+      }
+    }
+
+    function clearTabKitchenHistory(tabId) {
+      const tabIndex = openTabs.findIndex(t => t.id === tabId);
+      if (tabIndex !== -1) {
+        if (openTabs[tabIndex].isPaid) {
+          openTabs.splice(tabIndex, 1);
+        } else {
+          openTabs[tabIndex].items = openTabs[tabIndex].items.filter(i => i.status === 'kitchen_pending');
+        }
+        saveState();
+      }
+    }
+
+    function toggleAdminModal(show) {
+      document.getElementById('admin-modal').style.display = show ? 'flex' : 'none';
+      if (show) renderAdminList();
+    }
+
+    function renderAdminList() {
+      const list = document.getElementById('admin-products-list');
+      list.innerHTML = products.map(p => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding: 5px 0; border-bottom:1px solid #eee;">
+          <span>${p.name} - <b>${p.price.toFixed(2)} zł</b></span>
+          <button class="btn btn-danger" onclick="deleteProduct(${p.id})">Usuń</button>
+        </div>
+      `).join('');
+    }
+
+    function addProduct() {
+      const name = document.getElementById('new-prod-name').value.trim();
+      const price = parseFloat(document.getElementById('new-prod-price').value);
+
+      if (name && !isNaN(price) && price > 0) {
+        products.push({ id: Date.now(), name, price });
+        saveState();
+        document.getElementById('new-prod-name').value = '';
+        document.getElementById('new-prod-price').value = '';
+        renderAdminList();
+      }
+    }
+
+    function deleteProduct(id) {
+      if (confirm('Usunąć produkt z menu?')) {
+        products = products.filter(p => p.id !== id);
+        saveState();
+        renderAdminList();
+      }
+    }
+
+    // Inicjalizacja przy ładowaniu strony
+    window.addEventListener('DOMContentLoaded', () => {
+      updateClock();
+      renderAll();
+    });
+  </script>
+</body>
+</html>
